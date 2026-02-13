@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simon · Speed‑Adaptive Memory Game</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            user-select: none;
+        }
+        body {
+            background: #1e1e2f;
+            min-height: 100vh;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .game-container {
+            background: #2d2d3f;
+            border-radius: 2rem;
+            padding: 2rem;
+            box-shadow: 0 20px 30px rgba(0,0,0,0.6);
+            max-width: 700px;
+            width: 100%;
+        }
+        .title {
+            text-align: center;
+            color: #f0e6d0;
+            font-weight: 500;
+            letter-spacing: 2px;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 2.2rem;
+            text-shadow: 0 4px 0 #0b0b12;
+        }
+        .simon-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.2rem;
+            aspect-ratio: 1 / 1;
+            margin-bottom: 1.5rem;
+        }
+        .simon-btn {
+            border: none;
+            border-radius: 1.5rem;
+            cursor: pointer;
+            box-shadow: 0 8px 0 rgba(0,0,0,0.5), 0 12px 20px rgba(0,0,0,0.4);
+            transition: all 0.05s ease;
+            position: relative;
+            background: #ccc;
+        }
+        .simon-btn:active {
+            transform: translateY(8px);
+            box-shadow: 0 4px 0 rgba(0,0,0,0.5), 0 8px 15px rgba(0,0,0,0.4);
+        }
+        .simon-btn.active {
+            filter: brightness(1.6);
+            transform: scale(0.98);
+            box-shadow: 0 0 25px currentColor;
+        }
+        .simon-btn.disabled {
+            pointer-events: none;
+            opacity: 0.7;
+        }
+        .info-panel {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #1e1e2a;
+            padding: 1rem 1.5rem;
+            border-radius: 4rem;
+            color: #eee5d8;
+            margin-bottom: 1.2rem;
+        }
+        .round {
+            font-size: 1.6rem;
+            font-weight: bold;
+            background: #0f0f18;
+            padding: 0.4rem 1.2rem;
+            border-radius: 3rem;
+        }
+        .speed-indicator {
+            font-size: 1.1rem;
+            background: #2a2a3c;
+            padding: 0.3rem 1.2rem;
+            border-radius: 2rem;
+        }
+        .controls {
+            display: flex;
+            gap: 0.8rem;
+            justify-content: center;
+        }
+        button {
+            background: #3e3e5e;
+            border: none;
+            color: white;
+            font-size: 1.2rem;
+            font-weight: 600;
+            padding: 0.8rem 2rem;
+            border-radius: 3rem;
+            cursor: pointer;
+            box-shadow: 0 5px 0 #1d1d2b;
+            transition: 0.07s;
+            border: 1px solid #6a6a8b;
+        }
+        button:active {
+            transform: translateY(5px);
+            box-shadow: none;
+        }
+        .settings-toggle {
+            background: #5f4b8b;
+        }
+        .settings-panel {
+            background: #262635;
+            border-radius: 2rem;
+            padding: 1.5rem;
+            margin-top: 1.5rem;
+            color: #f0e6d0;
+            display: none;
+        }
+        .settings-panel.visible {
+            display: block;
+        }
+        .setting-row {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.2rem;
+            flex-wrap: wrap;
+        }
+        .color-picker {
+            width: 60px;
+            height: 50px;
+            border: 2px solid white;
+            border-radius: 1rem;
+            cursor: pointer;
+        }
+        .key-input {
+            background: #1a1a26;
+            border: 2px solid #5a5a7a;
+            color: white;
+            font-size: 1.3rem;
+            width: 90px;
+            text-align: center;
+            padding: 0.4rem;
+            border-radius: 1.5rem;
+            text-transform: uppercase;
+            cursor: pointer;
+        }
+        .key-input:focus {
+            outline: none;
+            border-color: #b4a6ff;
+        }
+        .file-upload {
+            background: #2d2d40;
+            padding: 0.8rem;
+            border-radius: 2rem;
+            width: 100%;
+        }
+        .default-btn {
+            background: #4e3e6e;
+            font-size: 1rem;
+            padding: 0.4rem 1.2rem;
+        }
+        hr {
+            border: 1px solid #4b4b68;
+            margin: 1.5rem 0;
+        }
+        .speed-mode {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        .speed-mode label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: #1a1a2a;
+            padding: 0.5rem 1.5rem;
+            border-radius: 3rem;
+            border: 2px solid #5a5a7a;
+            cursor: pointer;
+        }
+        .speed-mode input[type="radio"] {
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border: 2px solid #aaa;
+            border-radius: 50%;
+            background: #333;
+            cursor: pointer;
+        }
+        .speed-mode input[type="radio"]:checked {
+            background: #b4a6ff;
+            border-color: white;
+        }
+        .speed-number {
+            background: #1a1a2a;
+            border: 2px solid #5a5a7a;
+            color: white;
+            font-size: 1.2rem;
+            width: 120px;
+            padding: 0.5rem;
+            border-radius: 2rem;
+            text-align: center;
+        }
+        .speed-number:disabled {
+            opacity: 0.4;
+        }
+    </style>
+</head>
+<body>
+<div class="game-container">
+    <h1 class="title">SIMON · ADAPTIVE</h1>
+
+    <!-- main game buttons -->
+    <div class="simon-grid" id="simonGrid">
+        <button class="simon-btn" id="btn0" style="background: #c04040;"></button>
+        <button class="simon-btn" id="btn1" style="background: #40c040;"></button>
+        <button class="simon-btn" id="btn2" style="background: #4040c0;"></button>
+        <button class="simon-btn" id="btn3" style="background: #c0c040;"></button>
+    </div>
+
+    <!-- info bar -->
+    <div class="info-panel">
+        <span class="round" id="roundDisplay">ROUND 1</span>
+        <span class="speed-indicator" id="speedDisplay">⚡ 500 ms</span>
+    </div>
+
+    <!-- main control buttons -->
+    <div class="controls">
+        <button id="startBtn">▶ START</button>
+        <button id="settingsBtn" class="settings-toggle">⚙️ SETTINGS</button>
+    </div>
+
+    <!-- settings panel (hidden by default) -->
+    <div id="settingsPanel" class="settings-panel">
+        <h3 style="margin-top:0;">🎨 COLORS & KEYS</h3>
+        <!-- Button 0 -->
+        <div class="setting-row">
+            <span style="width:40px;">🔴 1</span>
+            <input type="color" id="color0" class="color-picker" value="#c04040">
+            <span>Key:</span>
+            <input type="text" id="key0" class="key-input" value="A" readonly placeholder="press a key">
+        </div>
+        <!-- Button 1 -->
+        <div class="setting-row">
+            <span style="width:40px;">🟢 2</span>
+            <input type="color" id="color1" class="color-picker" value="#40c040">
+            <span>Key:</span>
+            <input type="text" id="key1" class="key-input" value="S" readonly>
+        </div>
+        <!-- Button 2 -->
+        <div class="setting-row">
+            <span style="width:40px;">🔵 3</span>
+            <input type="color" id="color2" class="color-picker" value="#4040c0">
+            <span>Key:</span>
+            <input type="text" id="key2" class="key-input" value="D" readonly>
+        </div>
+        <!-- Button 3 -->
+        <div class="setting-row">
+            <span style="width:40px;">🟡 4</span>
+            <input type="color" id="color3" class="color-picker" value="#c0c040">
+            <span>Key:</span>
+            <input type="text" id="key3" class="key-input" value="F" readonly>
+        </div>
+
+        <hr>
+
+        <h3>⚡ SPEED MODE</h3>
+        <div class="speed-mode">
+            <label>
+                <input type="radio" name="speedMode" id="adaptiveRadio" checked> Adaptive
+            </label>
+            <label>
+                <input type="radio" name="speedMode" id="staticRadio"> Static
+            </label>
+        </div>
+
+        <div class="setting-row" id="adaptivePercentRow">
+            <span>➕ Add % to player speed:</span>
+            <input type="number" id="adaptivePercent" class="speed-number" value="25" min="0" max="200" step="5">
+        </div>
+
+        <div class="setting-row" id="staticDelayRow" style="display: none;">
+            <span>⏱️ Fixed delay (ms):</span>
+            <input type="number" id="staticDelay" class="speed-number" value="500" min="50" max="2000" step="10">
+        </div>
+
+        <hr>
+
+        <h3>🔊 SOUND (upload any audio)</h3>
+        <div class="setting-row">
+            <input type="file" id="soundUpload" accept="audio/*" class="file-upload">
+        </div>
+        <p style="font-size:0.9rem; opacity:0.7;">* File is pitched up: btn1 original, btn2 +1 step, btn3 +2 steps, btn4 +3 steps.</p>
+        <div class="controls" style="justify-content: flex-start;">
+            <button id="defaultSettingsBtn" class="default-btn">↺ RESET DEFAULTS</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function(){
+        // ---------- GAME STATE ----------
+        let pattern = [];                // sequence of button indices (0-3)
+        let round = 0;
+        let playerInputIndex = 0;
+        let gameActive = false;
+        let computerPlaying = false;
+        let playerTurn = false;
+
+        // Timing
+        let playerStartTime = null;
+        let playerTotalTime = 0;
+        let currentDelay = 500;           // ms between computer notes (default)
+        let nextDelay = 500;              // will be updated after player round (raw player avg)
+
+        // Speed mode settings
+        let adaptiveMode = true;           // true = adaptive, false = static
+        let adaptivePercent = 25;          // extra % added to player speed
+        let staticDelay = 500;              // fixed ms when static
+
+        // Audio
+        let audioContext = null;
+        let soundBuffer = null;            // decoded audio data
+        const detuneSteps = [0, 200, 400, 600];  // whole steps = 200 cents
+
+        // DOM elements
+        const btns = [
+            document.getElementById('btn0'),
+            document.getElementById('btn1'),
+            document.getElementById('btn2'),
+            document.getElementById('btn3')
+        ];
+        const roundDisplay = document.getElementById('roundDisplay');
+        const speedDisplay = document.getElementById('speedDisplay');
+        const startBtn = document.getElementById('startBtn');
+        const settingsBtn = document.getElementById('settingsBtn');
+        const settingsPanel = document.getElementById('settingsPanel');
+        const defaultSettingsBtn = document.getElementById('defaultSettingsBtn');
+
+        // Settings inputs
+        const colorPickers = [
+            document.getElementById('color0'),
+            document.getElementById('color1'),
+            document.getElementById('color2'),
+            document.getElementById('color3')
+        ];
+        const keyInputs = [
+            document.getElementById('key0'),
+            document.getElementById('key1'),
+            document.getElementById('key2'),
+            document.getElementById('key3')
+        ];
+        const soundUpload = document.getElementById('soundUpload');
+
+        // Speed mode radios & inputs
+        const adaptiveRadio = document.getElementById('adaptiveRadio');
+        const staticRadio = document.getElementById('staticRadio');
+        const adaptivePercentInput = document.getElementById('adaptivePercent');
+        const staticDelayInput = document.getElementById('staticDelay');
+        const adaptivePercentRow = document.getElementById('adaptivePercentRow');
+        const staticDelayRow = document.getElementById('staticDelayRow');
+
+        // Key mapping: stores key string -> button index
+        let keyMap = {};
+
+        // ---------- HELPER FUNCTIONS ----------
+
+        // Resume audio context on first user interaction
+        async function initAudio() {
+            if (audioContext) return;
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioContext.state === 'suspended') {
+                try {
+                    await audioContext.resume();
+                } catch (e) {}
+            }
+        }
+
+        // Play sound for a given button (with detune)
+        function playSound(buttonIndex) {
+            if (!audioContext || !soundBuffer) return;
+            const source = audioContext.createBufferSource();
+            source.buffer = soundBuffer;
+            source.detune.value = detuneSteps[buttonIndex];
+            source.connect(audioContext.destination);
+            source.start();
+        }
+
+        // Load default sound (built-in oscillator fallback if no file)
+        function createFallbackSound() {
+            // Create a simple sine wave buffer
+            if (!audioContext) return;
+            const sampleRate = audioContext.sampleRate;
+            const duration = 0.2;
+            const buffer = audioContext.createBuffer(1, sampleRate * duration, sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < buffer.length; i++) {
+                data[i] = Math.sin(440 * 2 * Math.PI * i / sampleRate);
+            }
+            soundBuffer = buffer;
+        }
+
+        // Load uploaded audio file
+        soundUpload.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            await initAudio();
+            const reader = new FileReader();
+            reader.onload = async (ev) => {
+                const arrayBuffer = ev.target.result;
+                try {
+                    const decoded = await audioContext.decodeAudioData(arrayBuffer);
+                    soundBuffer = decoded;
+                    alert('Sound loaded successfully!');
+                } catch (err) {
+                    alert('Could not decode audio. Using fallback beep.');
+                    createFallbackSound();
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        // Update button colors from pickers
+        function applyColors() {
+            for (let i = 0; i < 4; i++) {
+                btns[i].style.backgroundColor = colorPickers[i].value;
+            }
+        }
+
+        // Update key mapping from inputs
+        function updateKeyMap() {
+            keyMap = {};
+            for (let i = 0; i < 4; i++) {
+                let key = keyInputs[i].value.trim().toLowerCase();
+                if (key.length === 0) continue;
+                keyMap[key] = i;
+            }
+        }
+
+        // Reset settings to defaults
+        function setDefaults() {
+            const defaultColors = ['#c04040', '#40c040', '#4040c0', '#c0c040'];
+            const defaultKeys = ['a', 's', 'd', 'f'];
+            for (let i = 0; i < 4; i++) {
+                colorPickers[i].value = defaultColors[i];
+                keyInputs[i].value = defaultKeys[i].toUpperCase();
+            }
+            adaptiveRadio.checked = true;
+            staticRadio.checked = false;
+            adaptivePercentInput.value = 25;
+            staticDelayInput.value = 500;
+            adaptiveMode = true;
+            adaptivePercent = 25;
+            staticDelay = 500;
+            applyColors();
+            updateKeyMap();
+            updateSpeedModeUI();
+            saveSettings();
+        }
+
+        // Update UI based on speed mode selection
+        function updateSpeedModeUI() {
+            if (adaptiveRadio.checked) {
+                adaptivePercentRow.style.display = 'flex';
+                staticDelayRow.style.display = 'none';
+                adaptiveMode = true;
+            } else {
+                adaptivePercentRow.style.display = 'none';
+                staticDelayRow.style.display = 'flex';
+                adaptiveMode = false;
+            }
+        }
+
+        // Load settings from localStorage if any
+        function loadSettings() {
+            const saved = localStorage.getItem('simonSettings');
+            if (saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    if (data.colors) {
+                        for (let i = 0; i < 4; i++) {
+                            if (data.colors[i]) colorPickers[i].value = data.colors[i];
+                        }
+                    }
+                    if (data.keys) {
+                        for (let i = 0; i < 4; i++) {
+                            if (data.keys[i]) keyInputs[i].value = data.keys[i].toUpperCase();
+                        }
+                    }
+                    if (data.adaptiveMode !== undefined) {
+                        adaptiveMode = data.adaptiveMode;
+                        if (adaptiveMode) adaptiveRadio.checked = true;
+                        else staticRadio.checked = true;
+                    }
+                    if (data.adaptivePercent !== undefined) adaptivePercentInput.value = data.adaptivePercent;
+                    if (data.staticDelay !== undefined) staticDelayInput.value = data.staticDelay;
+                } catch (e) {}
+            }
+            adaptivePercent = parseFloat(adaptivePercentInput.value) || 25;
+            staticDelay = parseFloat(staticDelayInput.value) || 500;
+            applyColors();
+            updateKeyMap();
+            updateSpeedModeUI();
+        }
+
+        // Save settings to localStorage
+        function saveSettings() {
+            const colors = colorPickers.map(c => c.value);
+            const keys = keyInputs.map(k => k.value.toLowerCase());
+            const data = {
+                colors,
+                keys,
+                adaptiveMode: adaptiveRadio.checked,
+                adaptivePercent: parseFloat(adaptivePercentInput.value) || 25,
+                staticDelay: parseFloat(staticDelayInput.value) || 500
+            };
+            localStorage.setItem('simonSettings', JSON.stringify(data));
+        }
+
+        // Call when any setting changes
+        function onSettingChange() {
+            applyColors();
+            updateKeyMap();
+            adaptivePercent = parseFloat(adaptivePercentInput.value) || 25;
+            staticDelay = parseFloat(staticDelayInput.value) || 500;
+            saveSettings();
+        }
+
+        // Attach setting listeners
+        for (let i = 0; i < 4; i++) {
+            colorPickers[i].addEventListener('input', onSettingChange);
+            keyInputs[i].addEventListener('focus', function() {
+                const handler = (e) => {
+                    e.preventDefault();
+                    let key = e.key;
+                    if (key === ' ') key = 'space';
+                    if (key.length === 1 || key === 'space' || key.startsWith('Arrow')) {
+                        let display = key.length === 1 ? key.toUpperCase() : key;
+                        this.value = display;
+                        onSettingChange();
+                    }
+                    document.removeEventListener('keydown', handler);
+                };
+                document.addEventListener('keydown', handler);
+            });
+        }
+
+        // Speed mode toggle
+        adaptiveRadio.addEventListener('change', updateSpeedModeUI);
+        staticRadio.addEventListener('change', updateSpeedModeUI);
+        adaptivePercentInput.addEventListener('input', onSettingChange);
+        staticDelayInput.addEventListener('input', onSettingChange);
+
+        // Toggle settings panel
+        settingsBtn.addEventListener('click', () => {
+            settingsPanel.classList.toggle('visible');
+        });
+
+        defaultSettingsBtn.addEventListener('click', () => {
+            setDefaults();
+            onSettingChange();
+        });
+
+        // ---------- GAME LOGIC ----------
+
+        // Disable/enable player clicks
+        function setButtonsActive(active) {
+            for (let btn of btns) {
+                if (active) {
+                    btn.classList.remove('disabled');
+                } else {
+                    btn.classList.add('disabled');
+                }
+            }
+        }
+
+        // Compute current delay based on mode and nextDelay (player avg)
+        function computeCurrentDelay() {
+            if (adaptiveRadio.checked) {
+                // Adaptive mode: use nextDelay + percentage
+                let base = nextDelay || staticDelay; // fallback to static if no player data yet
+                let percent = parseFloat(adaptivePercentInput.value) || 0;
+                return Math.min(1000, Math.max(80, base * (1 + percent / 100)));
+            } else {
+                // Static mode
+                return parseFloat(staticDelayInput.value) || 500;
+            }
+        }
+
+        // Computer plays the pattern
+        async function computerPlay() {
+            computerPlaying = true;
+            playerTurn = false;
+            setButtonsActive(false);
+
+            for (let i = 0; i < pattern.length; i++) {
+                const idx = pattern[i];
+
+                // If this is the last button, add an extra 500ms pause before it
+                if (i === pattern.length - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+
+                // Highlight and play sound
+                btns[idx].classList.add('active');
+                playSound(idx);
+                await new Promise(resolve => setTimeout(resolve, currentDelay * 0.6));
+                btns[idx].classList.remove('active');
+                await new Promise(resolve => setTimeout(resolve, currentDelay * 0.4));
+            }
+
+            computerPlaying = false;
+            playerTurn = true;
+            setButtonsActive(true);
+            playerStartTime = null;
+            playerTotalTime = 0;
+        }
+
+        // Start a new round
+        async function nextRound() {
+            if (!gameActive) return;
+            round++;
+            roundDisplay.innerText = `ROUND ${round}`;
+            // Add a random new step to pattern
+            const newStep = Math.floor(Math.random() * 4);
+            pattern.push(newStep);
+
+            // Set computer speed based on mode and nextDelay
+            currentDelay = computeCurrentDelay();
+            speedDisplay.innerText = `⚡ ${Math.round(currentDelay)} ms`;
+
+            await computerPlay();
+        }
+
+        // Handle game over
+        function gameOver() {
+            gameActive = false;
+            playerTurn = false;
+            computerPlaying = false;
+            setButtonsActive(false);
+            alert(`Game Over! You reached round ${round}`);
+            startBtn.innerText = '▶ PLAY AGAIN';
+        }
+
+        // Player clicked a button
+        async function onPlayerClick(index) {
+            if (!gameActive || computerPlaying || !playerTurn) return;
+
+            // Start timing on first correct press of the round
+            if (playerStartTime === null && index === pattern[0]) {
+                playerStartTime = performance.now();
+            }
+
+            // Check correctness
+            if (index === pattern[playerInputIndex]) {
+                playSound(index);
+                btns[index].classList.add('active');
+                setTimeout(() => btns[index].classList.remove('active'), 150);
+
+                if (playerInputIndex === pattern.length - 1) {
+                    // End timing
+                    if (playerStartTime !== null) {
+                        const totalTime = performance.now() - playerStartTime;
+                        const avg = totalTime / pattern.length;
+                        nextDelay = avg;  // raw player average for next round
+                    }
+
+                    // Round complete - add 800ms pause before next round
+                    playerTurn = false;
+                    setButtonsActive(false);
+                    playerInputIndex = 0;
+
+                    // Wait 800ms then go to next round
+                    await new Promise(resolve => setTimeout(resolve, 800));
+                    await nextRound();
+                } else {
+                    playerInputIndex++;
+                }
+            } else {
+                playSound(index);
+                btns[index].classList.add('active');
+                setTimeout(() => btns[index].classList.remove('active'), 150);
+                gameOver();
+            }
+        }
+
+        // Keyboard handler
+        document.addEventListener('keydown', (e) => {
+            if (!gameActive || computerPlaying || !playerTurn) return;
+            const key = e.key.toLowerCase();
+            if (key in keyMap) {
+                e.preventDefault();
+                const btnIdx = keyMap[key];
+                onPlayerClick(btnIdx);
+            }
+        });
+
+        // Attach click handlers
+        for (let i = 0; i < btns.length; i++) {
+            btns[i].addEventListener('click', () => onPlayerClick(i));
+        }
+
+        // Start game
+        startBtn.addEventListener('click', async () => {
+            await initAudio();
+            if (!soundBuffer) {
+                createFallbackSound();
+            }
+
+            if (gameActive) {
+                if (confirm('Restart game?')) {
+                    // reset
+                } else {
+                    return;
+                }
+            }
+            // Reset game state
+            pattern = [];
+            round = 0;
+            playerInputIndex = 0;
+            gameActive = true;
+            nextDelay = parseFloat(staticDelayInput.value) || 500;  // initial default
+            currentDelay = computeCurrentDelay();
+            startBtn.innerText = '▶ PLAYING';
+            await nextRound();
+        });
+
+        // Load settings on page load
+        loadSettings();
+        updateKeyMap();
+
+        // Ensure audio context resumes on any click
+        document.addEventListener('click', async () => {
+            if (audioContext && audioContext.state === 'suspended') {
+                await audioContext.resume();
+            }
+        }, { once: false });
+
+    })();
+</script>
+</body>
+</html>
