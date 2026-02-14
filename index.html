@@ -17,6 +17,12 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            transition: overflow 0.2s;
+        }
+        /* Scroll lock when game is active */
+        body.no-scroll {
+            overflow: hidden;
+            height: 100%;
         }
         .game-container {
             background: #2d2d3f;
@@ -211,6 +217,32 @@
         .speed-number:disabled {
             opacity: 0.4;
         }
+        /* Lose popup styles */
+        .lose-popup {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            backdrop-filter: blur(3px);
+        }
+        .lose-popup .popup-content {
+            background: #2d2d3f;
+            color: #f0e6d0;
+            padding: 2rem 3rem;
+            border-radius: 3rem;
+            box-shadow: 0 20px 30px black;
+            text-align: center;
+            font-size: 1.5rem;
+        }
+        .lose-popup .popup-content h2 {
+            margin-top: 0;
+        }
     </style>
 </head>
 <body>
@@ -304,6 +336,15 @@
     </div>
 </div>
 
+<!-- Lose popup (hidden by default) -->
+<div id="losePopup" class="lose-popup">
+    <div class="popup-content">
+        <h2>😵 You Lose!</h2>
+        <p>Round <span id="loseRound"></span></p>
+        <p>Click anywhere or press any key to continue.</p>
+    </div>
+</div>
+
 <script>
     (function(){
         // ---------- GAME STATE ----------
@@ -367,8 +408,46 @@
         const adaptivePercentRow = document.getElementById('adaptivePercentRow');
         const staticDelayRow = document.getElementById('staticDelayRow');
 
+        // Lose popup
+        const losePopup = document.getElementById('losePopup');
+        const loseRoundSpan = document.getElementById('loseRound');
+
         // Key mapping: stores key string -> button index
         let keyMap = {};
+
+        // ---------- SCROLL LOCK ----------
+        function setScrollLock(lock) {
+            if (lock) {
+                document.body.classList.add('no-scroll');
+            } else {
+                document.body.classList.remove('no-scroll');
+            }
+        }
+
+        // ---------- POPUP FUNCTIONS ----------
+        function showLosePopup(roundReached) {
+            loseRoundSpan.textContent = roundReached;
+            losePopup.style.display = 'flex';
+            document.addEventListener('keydown', onPopupKeyDown);
+        }
+
+        function hideLosePopup() {
+            losePopup.style.display = 'none';
+            document.removeEventListener('keydown', onPopupKeyDown);
+            // Re-enable scrolling when popup is dismissed
+            setScrollLock(false);
+        }
+
+        function onPopupKeyDown(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            hideLosePopup();
+        }
+
+        // Click on overlay (or its content) hides it
+        losePopup.addEventListener('click', function() {
+            hideLosePopup();
+        });
 
         // ---------- HELPER FUNCTIONS ----------
 
@@ -645,8 +724,9 @@
             playerTurn = false;
             computerPlaying = false;
             setButtonsActive(false);
-            alert(`Game Over! You reached round ${round}`);
+            showLosePopup(round);
             startBtn.innerText = '▶ PLAY AGAIN';
+            // Note: scroll lock remains active until popup is dismissed
         }
 
         // Player clicked a button
@@ -729,6 +809,8 @@
             nextDelay = parseFloat(staticDelayInput.value) || 500;  // initial default
             currentDelay = computeCurrentDelay();
             startBtn.innerText = '▶ PLAYING';
+            // Lock scrolling while game is active
+            setScrollLock(true);
             await nextRound();
         });
 
