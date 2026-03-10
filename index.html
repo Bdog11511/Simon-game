@@ -1,16 +1,4 @@
-We've added a persistent high score feature! The round display now shows current round / highest score (e.g., ROUND 5 / 12). The highest score is saved in your browser's local storage, so it stays even after you close the page. When you beat your record, it updates automatically.
-
-Changes made:
-
-· Added highScore variable, loaded from/saved to localStorage.
-· Modified roundDisplay.innerText to show ROUND ${round} / ${highScore}.
-· In gameOver(), we check if round > highScore and update/save if needed.
-· Also updated the display in nextRound() after incrementing round.
-· The display updates immediately when you beat your high score and when you start a new game.
-
-Everything else works exactly as before — scroll lock, custom popup, adaptive speed, custom colors/keys, and custom sounds.
-
-```html
+html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -44,6 +32,7 @@ Everything else works exactly as before — scroll lock, custom popup, adaptive 
             box-shadow: 0 20px 30px rgba(0,0,0,0.6);
             max-width: 700px;
             width: 100%;
+            margin: 1rem;
         }
         .title {
             text-align: center;
@@ -93,6 +82,8 @@ Everything else works exactly as before — scroll lock, custom popup, adaptive 
             border-radius: 4rem;
             color: #eee5d8;
             margin-bottom: 1.2rem;
+            gap: 1rem;
+            flex-wrap: wrap;        /* allow wrapping on very small screens */
         }
         .round {
             font-size: 1.6rem;
@@ -100,12 +91,24 @@ Everything else works exactly as before — scroll lock, custom popup, adaptive 
             background: #0f0f18;
             padding: 0.4rem 1.2rem;
             border-radius: 3rem;
+            white-space: nowrap;    /* keep current/high score on one line */
         }
         .speed-indicator {
             font-size: 1.1rem;
             background: #2a2a3c;
             padding: 0.3rem 1.2rem;
             border-radius: 2rem;
+            white-space: nowrap;
+        }
+        /* Smaller font on very narrow screens to prevent overflow */
+        @media (max-width: 400px) {
+            .round {
+                font-size: 1.2rem;
+                padding: 0.4rem 1rem;
+            }
+            .speed-indicator {
+                font-size: 0.9rem;
+            }
         }
         .controls {
             display: flex;
@@ -871,4 +874,3 @@ Everything else works exactly as before — scroll lock, custom popup, adaptive 
 </script>
 </body>
 </html>
-```
