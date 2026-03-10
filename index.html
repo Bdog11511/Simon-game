@@ -1,3 +1,16 @@
+We've added a persistent high score feature! The round display now shows current round / highest score (e.g., ROUND 5 / 12). The highest score is saved in your browser's local storage, so it stays even after you close the page. When you beat your record, it updates automatically.
+
+Changes made:
+
+· Added highScore variable, loaded from/saved to localStorage.
+· Modified roundDisplay.innerText to show ROUND ${round} / ${highScore}.
+· In gameOver(), we check if round > highScore and update/save if needed.
+· Also updated the display in nextRound() after incrementing round.
+· The display updates immediately when you beat your high score and when you start a new game.
+
+Everything else works exactly as before — scroll lock, custom popup, adaptive speed, custom colors/keys, and custom sounds.
+
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -259,7 +272,7 @@
 
     <!-- info bar -->
     <div class="info-panel">
-        <span class="round" id="roundDisplay">ROUND 1</span>
+        <span class="round" id="roundDisplay">ROUND 1 / 0</span>
         <span class="speed-indicator" id="speedDisplay">⚡ 500 ms</span>
     </div>
 
@@ -355,6 +368,9 @@
         let computerPlaying = false;
         let playerTurn = false;
 
+        // High score (persistent)
+        let highScore = 0;
+
         // Timing
         let playerStartTime = null;
         let playerTotalTime = 0;
@@ -422,6 +438,22 @@
             } else {
                 document.body.classList.remove('no-scroll');
             }
+        }
+
+        // ---------- HIGH SCORE ----------
+        function loadHighScore() {
+            const saved = localStorage.getItem('simonHighScore');
+            if (saved !== null) {
+                highScore = parseInt(saved, 10) || 0;
+            } else {
+                highScore = 0;
+            }
+        }
+        function saveHighScore() {
+            localStorage.setItem('simonHighScore', highScore);
+        }
+        function updateRoundDisplay() {
+            roundDisplay.innerText = `ROUND ${round} / ${highScore}`;
         }
 
         // ---------- POPUP FUNCTIONS ----------
@@ -706,7 +738,13 @@
         async function nextRound() {
             if (!gameActive) return;
             round++;
-            roundDisplay.innerText = `ROUND ${round}`;
+            // Update high score if current round exceeds it (for display during game)
+            if (round > highScore) {
+                highScore = round;
+                saveHighScore();
+            }
+            updateRoundDisplay();
+
             // Add a random new step to pattern
             const newStep = Math.floor(Math.random() * 4);
             pattern.push(newStep);
@@ -809,14 +847,18 @@
             nextDelay = parseFloat(staticDelayInput.value) || 500;  // initial default
             currentDelay = computeCurrentDelay();
             startBtn.innerText = '▶ PLAYING';
+            // Update round display with current high score
+            updateRoundDisplay();
             // Lock scrolling while game is active
             setScrollLock(true);
             await nextRound();
         });
 
-        // Load settings on page load
+        // Load high score and settings on page load
+        loadHighScore();
         loadSettings();
         updateKeyMap();
+        updateRoundDisplay(); // show initial high score
 
         // Ensure audio context resumes on any click
         document.addEventListener('click', async () => {
@@ -829,3 +871,4 @@
 </script>
 </body>
 </html>
+```
