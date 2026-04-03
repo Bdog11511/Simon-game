@@ -1,876 +1,831 @@
-html
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simon · Speed‑Adaptive Memory Game</title>
-    <style>
-        * {
-            box-sizing: border-box;
-            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-            user-select: none;
-        }
-        body {
-            background: #1e1e2f;
-            min-height: 100vh;
-            margin: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            transition: overflow 0.2s;
-        }
-        /* Scroll lock when game is active */
-        body.no-scroll {
-            overflow: hidden;
-            height: 100%;
-        }
-        .game-container {
-            background: #2d2d3f;
-            border-radius: 2rem;
-            padding: 2rem;
-            box-shadow: 0 20px 30px rgba(0,0,0,0.6);
-            max-width: 700px;
-            width: 100%;
-            margin: 1rem;
-        }
-        .title {
-            text-align: center;
-            color: #f0e6d0;
-            font-weight: 500;
-            letter-spacing: 2px;
-            margin-top: 0;
-            margin-bottom: 1rem;
-            font-size: 2.2rem;
-            text-shadow: 0 4px 0 #0b0b12;
-        }
-        .simon-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1.2rem;
-            aspect-ratio: 1 / 1;
-            margin-bottom: 1.5rem;
-        }
-        .simon-btn {
-            border: none;
-            border-radius: 1.5rem;
-            cursor: pointer;
-            box-shadow: 0 8px 0 rgba(0,0,0,0.5), 0 12px 20px rgba(0,0,0,0.4);
-            transition: all 0.05s ease;
-            position: relative;
-            background: #ccc;
-        }
-        .simon-btn:active {
-            transform: translateY(8px);
-            box-shadow: 0 4px 0 rgba(0,0,0,0.5), 0 8px 15px rgba(0,0,0,0.4);
-        }
-        .simon-btn.active {
-            filter: brightness(1.6);
-            transform: scale(0.98);
-            box-shadow: 0 0 25px currentColor;
-        }
-        .simon-btn.disabled {
-            pointer-events: none;
-            opacity: 0.7;
-        }
-        .info-panel {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background: #1e1e2a;
-            padding: 1rem 1.5rem;
-            border-radius: 4rem;
-            color: #eee5d8;
-            margin-bottom: 1.2rem;
-            gap: 1rem;
-            flex-wrap: wrap;        /* allow wrapping on very small screens */
-        }
-        .round {
-            font-size: 1.6rem;
-            font-weight: bold;
-            background: #0f0f18;
-            padding: 0.4rem 1.2rem;
-            border-radius: 3rem;
-            white-space: nowrap;    /* keep current/high score on one line */
-        }
-        .speed-indicator {
-            font-size: 1.1rem;
-            background: #2a2a3c;
-            padding: 0.3rem 1.2rem;
-            border-radius: 2rem;
-            white-space: nowrap;
-        }
-        /* Smaller font on very narrow screens to prevent overflow */
-        @media (max-width: 400px) {
-            .round {
-                font-size: 1.2rem;
-                padding: 0.4rem 1rem;
-            }
-            .speed-indicator {
-                font-size: 0.9rem;
-            }
-        }
-        .controls {
-            display: flex;
-            gap: 0.8rem;
-            justify-content: center;
-        }
-        button {
-            background: #3e3e5e;
-            border: none;
-            color: white;
-            font-size: 1.2rem;
-            font-weight: 600;
-            padding: 0.8rem 2rem;
-            border-radius: 3rem;
-            cursor: pointer;
-            box-shadow: 0 5px 0 #1d1d2b;
-            transition: 0.07s;
-            border: 1px solid #6a6a8b;
-        }
-        button:active {
-            transform: translateY(5px);
-            box-shadow: none;
-        }
-        .settings-toggle {
-            background: #5f4b8b;
-        }
-        .settings-panel {
-            background: #262635;
-            border-radius: 2rem;
-            padding: 1.5rem;
-            margin-top: 1.5rem;
-            color: #f0e6d0;
-            display: none;
-        }
-        .settings-panel.visible {
-            display: block;
-        }
-        .setting-row {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            margin-bottom: 1.2rem;
-            flex-wrap: wrap;
-        }
-        .color-picker {
-            width: 60px;
-            height: 50px;
-            border: 2px solid white;
-            border-radius: 1rem;
-            cursor: pointer;
-        }
-        .key-input {
-            background: #1a1a26;
-            border: 2px solid #5a5a7a;
-            color: white;
-            font-size: 1.3rem;
-            width: 90px;
-            text-align: center;
-            padding: 0.4rem;
-            border-radius: 1.5rem;
-            text-transform: uppercase;
-            cursor: pointer;
-        }
-        .key-input:focus {
-            outline: none;
-            border-color: #b4a6ff;
-        }
-        .file-upload {
-            background: #2d2d40;
-            padding: 0.8rem;
-            border-radius: 2rem;
-            width: 100%;
-        }
-        .default-btn {
-            background: #4e3e6e;
-            font-size: 1rem;
-            padding: 0.4rem 1.2rem;
-        }
-        hr {
-            border: 1px solid #4b4b68;
-            margin: 1.5rem 0;
-        }
-        .speed-mode {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            margin: 1rem 0;
-        }
-        .speed-mode label {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            background: #1a1a2a;
-            padding: 0.5rem 1.5rem;
-            border-radius: 3rem;
-            border: 2px solid #5a5a7a;
-            cursor: pointer;
-        }
-        .speed-mode input[type="radio"] {
-            appearance: none;
-            width: 18px;
-            height: 18px;
-            border: 2px solid #aaa;
-            border-radius: 50%;
-            background: #333;
-            cursor: pointer;
-        }
-        .speed-mode input[type="radio"]:checked {
-            background: #b4a6ff;
-            border-color: white;
-        }
-        .speed-number {
-            background: #1a1a2a;
-            border: 2px solid #5a5a7a;
-            color: white;
-            font-size: 1.2rem;
-            width: 120px;
-            padding: 0.5rem;
-            border-radius: 2rem;
-            text-align: center;
-        }
-        .speed-number:disabled {
-            opacity: 0.4;
-        }
-        /* Lose popup styles */
-        .lose-popup {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 2000;
-            backdrop-filter: blur(3px);
-        }
-        .lose-popup .popup-content {
-            background: #2d2d3f;
-            color: #f0e6d0;
-            padding: 2rem 3rem;
-            border-radius: 3rem;
-            box-shadow: 0 20px 30px black;
-            text-align: center;
-            font-size: 1.5rem;
-        }
-        .lose-popup .popup-content h2 {
-            margin-top: 0;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SIMON X</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --bg:#04040f;--bg2:#080820;--bg3:#0d0d2a;
+  --border:#1a1a40;--text:#c0caff;--text-dim:#5560a0;
+  --accent:#6a4fff;--accent-glow:rgba(106,79,255,0.35);
+  --danger:#ff3d5a;--success:#00e87a;
+  --tile-size:180px;--gap:18px;--radius:16px;--font-scale:1px;
+}
+
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;touch-action:none}
+
+/* CRT scanlines */
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 4px);pointer-events:none;z-index:9999}
+
+/* Ambient background glow */
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 70% 60% at 50% 50%,rgba(106,79,255,0.07) 0%,transparent 70%);pointer-events:none}
+
+#app{width:100%;height:100%;display:flex;align-items:center;justify-content:center;position:relative}
+
+/* ===== MAIN SCREEN ===== */
+#main{display:flex;flex-direction:column;align-items:center;gap:22px;transition:transform .2s ease}
+
+h1{font-family:'Orbitron',sans-serif;font-size:clamp(2rem,5vw,3.2rem);font-weight:900;letter-spacing:.35em;color:#fff;text-shadow:0 0 30px var(--accent),0 0 80px var(--accent-glow);user-select:none}
+
+#score-row{display:flex;gap:36px;justify-content:center;font-family:'Orbitron',sans-serif;font-size:.75rem;letter-spacing:.15em;color:var(--text-dim);margin-top:6px}
+#score-row span{color:var(--text)}
+
+/* ===== TILES ===== */
+#tiles{display:grid;grid-template-columns:var(--tile-size) var(--tile-size);grid-template-rows:var(--tile-size) var(--tile-size);gap:var(--gap);position:relative}
+
+/* Center cross divider */
+#tiles::before,#tiles::after{content:'';position:absolute;background:var(--bg);z-index:1;pointer-events:none;border-radius:4px}
+#tiles::before{width:var(--gap);height:calc(100% + var(--gap)*2);left:50%;top:calc(-1*var(--gap));transform:translateX(-50%)}
+#tiles::after{height:var(--gap);width:calc(100% + var(--gap)*2);top:50%;left:calc(-1*var(--gap));transform:translateY(-50%)}
+
+.tile{
+  width:var(--tile-size);height:var(--tile-size);border-radius:var(--radius);
+  cursor:pointer;position:relative;user-select:none;
+  filter:brightness(.3) saturate(.5);
+  border:2px solid rgba(255,255,255,0.04);
+  transition:filter .06s ease,transform .06s ease,border-color .06s ease;
+}
+.tile::before{content:'';position:absolute;inset:0;border-radius:inherit;background:linear-gradient(135deg,rgba(255,255,255,0.18) 0%,transparent 55%);pointer-events:none}
+.tile::after{content:'';position:absolute;inset:0;border-radius:inherit;background:linear-gradient(315deg,rgba(0,0,0,0.25) 0%,transparent 50%);pointer-events:none}
+
+.tile.active{filter:brightness(1.05) saturate(1.1)!important;transform:scale(.955)!important;border-color:rgba(255,255,255,0.35)!important}
+.tile.player-flash{filter:brightness(1.05) saturate(1.1)!important;transform:scale(.955)!important;border-color:rgba(255,255,255,0.35)!important}
+.tile.wrong-flash{filter:brightness(1)!important;transform:scale(.97)!important;background:#ff1a3a!important;border-color:rgba(255,100,100,.5)!important}
+
+.tile[data-i="0"]{background:var(--c0,#00ff88)}
+.tile[data-i="1"]{background:var(--c1,#ff4060)}
+.tile[data-i="2"]{background:var(--c2,#ffd000)}
+.tile[data-i="3"]{background:var(--c3,#00b4ff)}
+
+.tile-key{position:absolute;bottom:10px;right:12px;font-family:'Orbitron',sans-serif;font-size:.6rem;font-weight:700;color:rgba(255,255,255,.45);pointer-events:none;letter-spacing:.05em}
+
+/* ===== PROGRESS DOTS ===== */
+#dots{display:flex;gap:5px;justify-content:center;flex-wrap:wrap;max-width:400px;min-height:14px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--border);transition:background .15s,transform .15s}
+.dot.done{background:var(--accent)}
+.dot.cur{background:#fff;transform:scale(1.3)}
+
+/* ===== CONTROLS ===== */
+#controls{display:flex;gap:10px;align-items:center}
+
+.btn{font-family:'Orbitron',sans-serif;font-size:.72rem;font-weight:700;letter-spacing:.15em;border:none;border-radius:8px;cursor:pointer;padding:11px 26px;transition:all .15s ease;white-space:nowrap}
+.btn-primary{background:var(--accent);color:#fff;box-shadow:0 0 20px var(--accent-glow)}
+.btn-primary:hover:not(:disabled){background:#8268ff;box-shadow:0 0 32px var(--accent-glow);transform:translateY(-1px)}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed}
+.btn-ghost{background:transparent;color:var(--text-dim);border:1px solid var(--border)}
+.btn-ghost:hover{color:var(--text);border-color:var(--accent);box-shadow:0 0 12px var(--accent-glow)}
+
+#status{font-family:'Orbitron',sans-serif;font-size:.7rem;letter-spacing:.18em;color:var(--text-dim);text-align:center;min-height:1.2em;transition:color .2s}
+#status.ok{color:var(--success)}
+#status.err{color:var(--danger)}
+
+/* ===== SETTINGS PANEL ===== */
+#panel{
+  position:fixed;top:0;right:0;height:100%;width:380px;max-width:100vw;
+  background:var(--bg2);border-left:1px solid var(--border);
+  overflow-y:auto;padding:26px 22px;display:flex;flex-direction:column;gap:26px;
+  transform:translateX(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);z-index:100;
+}
+#panel.open{transform:translateX(0);box-shadow:-24px 0 60px rgba(0,0,0,.6)}
+#panel::-webkit-scrollbar{width:3px}
+#panel::-webkit-scrollbar-track{background:transparent}
+#panel::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+.p-header{display:flex;align-items:center;justify-content:space-between}
+.p-title{font-family:'Orbitron',sans-serif;font-size:1rem;font-weight:700;letter-spacing:.25em;color:#fff}
+.p-close{background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:1.4rem;line-height:1;padding:4px;transition:color .15s}
+.p-close:hover{color:#fff}
+
+.sec{display:flex;flex-direction:column;gap:12px}
+.sec-title{font-family:'Orbitron',sans-serif;font-size:.6rem;font-weight:700;letter-spacing:.3em;color:var(--accent);padding-bottom:8px;border-bottom:1px solid var(--border)}
+
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.lbl{font-size:.88rem;font-weight:500;color:var(--text-dim);flex:1;line-height:1.3}
+.lbl small{display:block;font-size:.72rem;color:var(--text-dim);opacity:.7;margin-top:2px}
+
+input[type=number]{background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Orbitron',sans-serif;font-size:.75rem;padding:8px 10px;width:85px;text-align:center;outline:none;transition:border-color .15s}
+input[type=number]:focus{border-color:var(--accent);box-shadow:0 0 8px var(--accent-glow)}
+
+input[type=color]{-webkit-appearance:none;appearance:none;width:40px;height:34px;border:1px solid var(--border);border-radius:6px;cursor:pointer;background:none;padding:2px}
+input[type=color]::-webkit-color-swatch-wrapper{padding:0}
+input[type=color]::-webkit-color-swatch{border:none;border-radius:4px}
+
+input[type=range]{-webkit-appearance:none;width:130px;height:4px;background:var(--bg3);border-radius:2px;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--accent);cursor:pointer;box-shadow:0 0 8px var(--accent-glow)}
+
+.tog{display:flex;background:var(--bg3);border-radius:8px;border:1px solid var(--border);overflow:hidden}
+.tog-opt{flex:1;padding:8px 10px;text-align:center;font-family:'Orbitron',sans-serif;font-size:.65rem;letter-spacing:.08em;cursor:pointer;border:none;background:transparent;color:var(--text-dim);transition:all .15s}
+.tog-opt.on{background:var(--accent);color:#fff}
+
+.key-cap{background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Orbitron',sans-serif;font-size:.7rem;padding:7px 8px;min-width:68px;text-align:center;cursor:pointer;user-select:none;transition:all .15s}
+.key-cap:hover{border-color:var(--accent)}
+.key-cap.listening{border-color:var(--accent);box-shadow:0 0 8px var(--accent-glow);color:var(--accent)}
+
+.clr-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.clr-item{display:flex;align-items:center;gap:8px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 10px}
+.clr-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.clr-lbl{font-size:.8rem;color:var(--text-dim);flex:1}
+
+.key-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.key-item{display:flex;align-items:center;gap:8px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 10px}
+.key-lbl{font-size:.8rem;color:var(--text-dim);flex:1}
+
+.info-box{font-size:.75rem;color:var(--text-dim);padding:8px 12px;background:rgba(106,79,255,.07);border:1px solid rgba(106,79,255,.2);border-radius:6px;line-height:1.55}
+
+.btn-sm{font-family:'Orbitron',sans-serif;font-size:.62rem;letter-spacing:.1em;font-weight:700;border:none;border-radius:6px;cursor:pointer;padding:7px 13px;transition:all .15s}
+.btn-acc{background:var(--accent);color:#fff}
+.btn-acc:hover{background:#8268ff}
+.btn-out{background:transparent;color:var(--text-dim);border:1px solid var(--border)}
+.btn-out:hover{color:var(--text);border-color:var(--text-dim)}
+
+.file-name{font-size:.78rem;color:var(--text-dim);font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px}
+
+#size-val{font-family:'Orbitron',sans-serif;font-size:.72rem;color:var(--accent);min-width:38px;text-align:right}
+
+/* ===== GAME OVER ===== */
+#gameover{position:fixed;inset:0;background:rgba(4,4,15,.9);backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:center;z-index:200;opacity:0;pointer-events:none;transition:opacity .3s}
+#gameover.show{opacity:1;pointer-events:all}
+#go-box{text-align:center;display:flex;flex-direction:column;align-items:center;gap:18px}
+#go-title{font-family:'Orbitron',sans-serif;font-size:clamp(2rem,6vw,3.5rem);font-weight:900;letter-spacing:.2em;color:var(--danger);text-shadow:0 0 40px rgba(255,61,90,.6)}
+.go-anim{animation:goAppear .5s cubic-bezier(.2,1.5,.4,1) both}
+@keyframes goAppear{from{transform:scale(.6) skewX(-8deg);opacity:0}to{transform:scale(1) skewX(0);opacity:1}}
+#go-score{font-family:'Orbitron',sans-serif;font-size:.95rem;color:var(--text);letter-spacing:.2em}
+#go-best{font-size:.8rem;color:var(--text-dim);letter-spacing:.1em}
+#go-seq{font-size:.75rem;color:var(--text-dim);letter-spacing:.08em;max-width:300px;text-align:center}
+</style>
 </head>
 <body>
-<div class="game-container">
-    <h1 class="title">SIMON · ADAPTIVE</h1>
+<div id="app">
 
-    <!-- main game buttons -->
-    <div class="simon-grid" id="simonGrid">
-        <button class="simon-btn" id="btn0" style="background: #c04040;"></button>
-        <button class="simon-btn" id="btn1" style="background: #40c040;"></button>
-        <button class="simon-btn" id="btn2" style="background: #4040c0;"></button>
-        <button class="simon-btn" id="btn3" style="background: #c0c040;"></button>
+  <!-- MAIN GAME -->
+  <div id="main">
+    <div>
+      <h1>SIMON X</h1>
+      <div id="score-row">
+        <div>ROUND <span id="rnd">—</span></div>
+        <div>BEST <span id="bst">0</span></div>
+      </div>
     </div>
 
-    <!-- info bar -->
-    <div class="info-panel">
-        <span class="round" id="roundDisplay">ROUND 1 / 0</span>
-        <span class="speed-indicator" id="speedDisplay">⚡ 500 ms</span>
+    <div id="dots"></div>
+
+    <div id="tiles">
+      <div class="tile" data-i="0" id="t0"><span class="tile-key" id="k0">Q</span></div>
+      <div class="tile" data-i="1" id="t1"><span class="tile-key" id="k1">W</span></div>
+      <div class="tile" data-i="2" id="t2"><span class="tile-key" id="k2">A</span></div>
+      <div class="tile" data-i="3" id="t3"><span class="tile-key" id="k3">S</span></div>
     </div>
 
-    <!-- main control buttons -->
-    <div class="controls">
-        <button id="startBtn">▶ START</button>
-        <button id="settingsBtn" class="settings-toggle">⚙️ SETTINGS</button>
+    <div id="status">Press START to begin</div>
+
+    <div id="controls">
+      <button class="btn btn-primary" id="startBtn">START</button>
+      <button class="btn btn-ghost" id="settingsBtn">⚙ SETTINGS</button>
+    </div>
+  </div>
+
+  <!-- SETTINGS PANEL -->
+  <div id="panel">
+    <div class="p-header">
+      <div class="p-title">SETTINGS</div>
+      <button class="p-close" id="closePanel">✕</button>
     </div>
 
-    <!-- settings panel (hidden by default) -->
-    <div id="settingsPanel" class="settings-panel">
-        <h3 style="margin-top:0;">🎨 COLORS & KEYS</h3>
-        <!-- Button 0 -->
-        <div class="setting-row">
-            <span style="width:40px;">🔴 1</span>
-            <input type="color" id="color0" class="color-picker" value="#c04040">
-            <span>Key:</span>
-            <input type="text" id="key0" class="key-input" value="A" readonly placeholder="press a key">
+    <!-- SOUND -->
+    <div class="sec">
+      <div class="sec-title">🔊 Sound</div>
+      <div class="row">
+        <div>
+          <div class="lbl">Custom Sound File</div>
+          <div class="file-name" id="fileDisp">Default beep tones</div>
         </div>
-        <!-- Button 1 -->
-        <div class="setting-row">
-            <span style="width:40px;">🟢 2</span>
-            <input type="color" id="color1" class="color-picker" value="#40c040">
-            <span>Key:</span>
-            <input type="text" id="key1" class="key-input" value="S" readonly>
+        <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+          <button class="btn-sm btn-acc" id="importBtn">IMPORT</button>
+          <button class="btn-sm btn-out" id="resetSnd">RESET</button>
         </div>
-        <!-- Button 2 -->
-        <div class="setting-row">
-            <span style="width:40px;">🔵 3</span>
-            <input type="color" id="color2" class="color-picker" value="#4040c0">
-            <span>Key:</span>
-            <input type="text" id="key2" class="key-input" value="D" readonly>
-        </div>
-        <!-- Button 3 -->
-        <div class="setting-row">
-            <span style="width:40px;">🟡 4</span>
-            <input type="color" id="color3" class="color-picker" value="#c0c040">
-            <span>Key:</span>
-            <input type="text" id="key3" class="key-input" value="F" readonly>
-        </div>
-
-        <hr>
-
-        <h3>⚡ SPEED MODE</h3>
-        <div class="speed-mode">
-            <label>
-                <input type="radio" name="speedMode" id="adaptiveRadio" checked> Adaptive
-            </label>
-            <label>
-                <input type="radio" name="speedMode" id="staticRadio"> Static
-            </label>
-        </div>
-
-        <div class="setting-row" id="adaptivePercentRow">
-            <span>➕ Add % to player speed:</span>
-            <input type="number" id="adaptivePercent" class="speed-number" value="25" min="0" max="200" step="5">
-        </div>
-
-        <div class="setting-row" id="staticDelayRow" style="display: none;">
-            <span>⏱️ Fixed delay (ms):</span>
-            <input type="number" id="staticDelay" class="speed-number" value="500" min="50" max="2000" step="10">
-        </div>
-
-        <hr>
-
-        <h3>🔊 SOUND (upload any audio)</h3>
-        <div class="setting-row">
-            <input type="file" id="soundUpload" accept="audio/*" class="file-upload">
-        </div>
-        <p style="font-size:0.9rem; opacity:0.7;">* File is pitched up: btn1 original, btn2 +1 step, btn3 +2 steps, btn4 +3 steps.</p>
-        <div class="controls" style="justify-content: flex-start;">
-            <button id="defaultSettingsBtn" class="default-btn">↺ RESET DEFAULTS</button>
-        </div>
+      </div>
+      <input type="file" id="fileInput" accept=".mp3,.wav,audio/mpeg,audio/wav" style="display:none">
     </div>
-</div>
 
-<!-- Lose popup (hidden by default) -->
-<div id="losePopup" class="lose-popup">
-    <div class="popup-content">
-        <h2>😵 You Lose!</h2>
-        <p>Round <span id="loseRound"></span></p>
-        <p>Click anywhere or press any key to continue.</p>
+    <!-- PITCH -->
+    <div class="sec">
+      <div class="sec-title">🎵 Pitch X</div>
+      <div class="row">
+        <div class="lbl">Semitones per tile step<small>Tile 1 = 0, Tile 2 = -X, Tile 3 = -2X…</small></div>
+        <input type="number" id="pitchInp" min="0" max="24" step="0.1" value="1">
+      </div>
+      <div class="info-box" id="pitchPrev">Tile 1: 0 st · Tile 2: −1 st · Tile 3: −2 st · Tile 4: −3 st</div>
     </div>
+
+    <!-- WAIT TIME -->
+    <div class="sec">
+      <div class="sec-title">⏱ Flash Wait Time</div>
+      <div class="tog" style="margin-bottom:4px">
+        <button class="tog-opt on" id="modeStatic" onclick="setMode('static')">STATIC</button>
+        <button class="tog-opt" id="modeLive" onclick="setMode('live')">LIVE</button>
+      </div>
+      <div class="row" id="waitRow">
+        <div class="lbl" id="waitLbl">Gap between flashes (ms)</div>
+        <input type="number" id="waitInp" min="0" max="9999" step="10" value="600">
+      </div>
+      <div class="info-box" id="waitInfo" style="display:none">
+        Live mode uses the average time between your presses last round as the base wait.
+        The % value is added on top (0% = same speed, 50% = 50% slower).
+        First round defaults to 800 ms.
+      </div>
+      <div class="info-box" id="liveStats" style="display:none">Last avg press gap: <span id="lastAvgDisp">—</span> ms</div>
+    </div>
+
+    <!-- COLORS -->
+    <div class="sec">
+      <div class="sec-title">🎨 Tile Colors</div>
+      <div class="clr-grid">
+        <div class="clr-item"><div class="clr-dot" id="cd0"></div><div class="clr-lbl">Tile 1 (TL)</div><input type="color" id="col0" value="#00ff88"></div>
+        <div class="clr-item"><div class="clr-dot" id="cd1"></div><div class="clr-lbl">Tile 2 (TR)</div><input type="color" id="col1" value="#ff4060"></div>
+        <div class="clr-item"><div class="clr-dot" id="cd2"></div><div class="clr-lbl">Tile 3 (BL)</div><input type="color" id="col2" value="#ffd000"></div>
+        <div class="clr-item"><div class="clr-dot" id="cd3"></div><div class="clr-lbl">Tile 4 (BR)</div><input type="color" id="col3" value="#00b4ff"></div>
+      </div>
+    </div>
+
+    <!-- KEYBINDS -->
+    <div class="sec">
+      <div class="sec-title">⌨ Keybinds <span style="font-weight:400;color:var(--text-dim);font-size:.55rem;letter-spacing:.1em">(click to rebind)</span></div>
+      <div class="key-grid">
+        <div class="key-item"><div class="clr-dot" id="kd0"></div><div class="key-lbl">Tile 1</div><div class="key-cap" id="kb0" data-tile="0">Q</div></div>
+        <div class="key-item"><div class="clr-dot" id="kd1"></div><div class="key-lbl">Tile 2</div><div class="key-cap" id="kb1" data-tile="1">W</div></div>
+        <div class="key-item"><div class="clr-dot" id="kd2"></div><div class="key-lbl">Tile 3</div><div class="key-cap" id="kb2" data-tile="2">A</div></div>
+        <div class="key-item"><div class="clr-dot" id="kd3"></div><div class="key-lbl">Tile 4</div><div class="key-cap" id="kb3" data-tile="3">S</div></div>
+      </div>
+    </div>
+
+    <!-- GAME SIZE -->
+    <div class="sec">
+      <div class="sec-title">📐 Game Size</div>
+      <div class="row">
+        <div class="lbl">Scale factor</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <input type="range" id="sizeSlider" min="0.4" max="2.6" step="0.05" value="1">
+          <div id="size-val">1.0×</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GAME OVER -->
+  <div id="gameover">
+    <div id="go-box">
+      <div id="go-title" class="go-anim">GAME OVER</div>
+      <div id="go-score">Round reached: <span id="goRnd">0</span></div>
+      <div id="go-best">Best: <span id="goBst">0</span></div>
+      <div id="go-seq"></div>
+      <button class="btn btn-primary" id="replayBtn">PLAY AGAIN</button>
+    </div>
+  </div>
 </div>
 
 <script>
-    (function(){
-        // ---------- GAME STATE ----------
-        let pattern = [];                // sequence of button indices (0-3)
-        let round = 0;
-        let playerInputIndex = 0;
-        let gameActive = false;
-        let computerPlaying = false;
-        let playerTurn = false;
+// ============================================================
+// SIMON X — Core Game Engine
+// ============================================================
 
-        // High score (persistent)
-        let highScore = 0;
+// ---- Constants ----
+const FLASH_MS   = 420;   // how long a Simon flash lasts
+const DEFAULT_WAIT = 800; // first-round default wait (ms) for live mode
 
-        // Timing
-        let playerStartTime = null;
-        let playerTotalTime = 0;
-        let currentDelay = 500;           // ms between computer notes (default)
-        let nextDelay = 500;              // will be updated after player round (raw player avg)
+// ---- Default settings ----
+const DEFS = {
+  pitchX:     1,
+  waitMode:  'static',
+  waitValue:  600,
+  colors:    ['#00ff88','#ff4060','#ffd000','#00b4ff'],
+  keybinds:  ['q','w','a','s'],
+  gameSize:   1.0,
+};
 
-        // Speed mode settings
-        let adaptiveMode = true;           // true = adaptive, false = static
-        let adaptivePercent = 25;          // extra % added to player speed
-        let staticDelay = 500;              // fixed ms when static
+// ---- State ----
+let S     = deepClone(DEFS);    // current settings
+let best  = 0;
+let seq   = [];                  // tile sequence
+let pIdx  = 0;                   // player index in phase 2
+let gst   = 'idle';              // 'idle'|'simon'|'player'|'gameover'
+let simId = 0;                   // simon phase id (for cancellation)
+let stamps= [];                  // press timestamps this round
+let lastAvg = null;              // last avg press gap (ms)
 
-        // Audio
-        let audioContext = null;
-        let soundBuffer = null;            // decoded audio data
-        const detuneSteps = [0, 200, 400, 600];  // whole steps = 200 cents
+// ---- Audio ----
+let actx   = null;
+let abuf   = null;               // decoded AudioBuffer of custom sound
+let csrc   = null;               // currently playing source node
+let sndName= null;
 
-        // DOM elements
-        const btns = [
-            document.getElementById('btn0'),
-            document.getElementById('btn1'),
-            document.getElementById('btn2'),
-            document.getElementById('btn3')
-        ];
-        const roundDisplay = document.getElementById('roundDisplay');
-        const speedDisplay = document.getElementById('speedDisplay');
-        const startBtn = document.getElementById('startBtn');
-        const settingsBtn = document.getElementById('settingsBtn');
-        const settingsPanel = document.getElementById('settingsPanel');
-        const defaultSettingsBtn = document.getElementById('defaultSettingsBtn');
+function getCtx(){
+  if(!actx) actx = new (window.AudioContext||window.webkitAudioContext)();
+  if(actx.state==='suspended') actx.resume();
+  return actx;
+}
 
-        // Settings inputs
-        const colorPickers = [
-            document.getElementById('color0'),
-            document.getElementById('color1'),
-            document.getElementById('color2'),
-            document.getElementById('color3')
-        ];
-        const keyInputs = [
-            document.getElementById('key0'),
-            document.getElementById('key1'),
-            document.getElementById('key2'),
-            document.getElementById('key3')
-        ];
-        const soundUpload = document.getElementById('soundUpload');
+function stopSnd(){
+  if(csrc){ try{csrc.stop(0)}catch(e){} csrc=null; }
+}
 
-        // Speed mode radios & inputs
-        const adaptiveRadio = document.getElementById('adaptiveRadio');
-        const staticRadio = document.getElementById('staticRadio');
-        const adaptivePercentInput = document.getElementById('adaptivePercent');
-        const staticDelayInput = document.getElementById('staticDelay');
-        const adaptivePercentRow = document.getElementById('adaptivePercentRow');
-        const staticDelayRow = document.getElementById('staticDelayRow');
+function playTile(i){
+  const ctx = getCtx();
+  stopSnd();
+  const detune = -i * S.pitchX * 100; // cents
+  if(abuf){
+    const src = ctx.createBufferSource();
+    src.buffer = abuf;
+    src.detune.value = detune;
+    src.connect(ctx.destination);
+    src.start(0);
+    csrc = src;
+  } else {
+    // Generate beep
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const freq = 660 * Math.pow(2, detune/1200);
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.38, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+0.55);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(0);
+    osc.stop(ctx.currentTime+0.6);
+    csrc = osc;
+  }
+}
 
-        // Lose popup
-        const losePopup = document.getElementById('losePopup');
-        const loseRoundSpan = document.getElementById('loseRound');
+// ---- IndexedDB (custom sound persistence) ----
+const DB_NAME='SimonXDB', DB_VER=1, DB_STORE='audio';
+function openDB(){
+  return new Promise((res,rej)=>{
+    const r=indexedDB.open(DB_NAME,DB_VER);
+    r.onupgradeneeded=e=>e.target.result.createObjectStore(DB_STORE);
+    r.onsuccess=e=>res(e.target.result);
+    r.onerror=rej;
+  });
+}
+async function saveSnd(buf,name){
+  const db=await openDB();
+  return new Promise((res,rej)=>{
+    const tx=db.transaction(DB_STORE,'readwrite');
+    tx.objectStore(DB_STORE).put({data:buf,name},'sound');
+    tx.oncomplete=res; tx.onerror=rej;
+  });
+}
+async function loadSnd(){
+  try{
+    const db=await openDB();
+    return new Promise((res,rej)=>{
+      const r=db.transaction(DB_STORE,'readonly').objectStore(DB_STORE).get('sound');
+      r.onsuccess=e=>res(e.target.result);
+      r.onerror=rej;
+    });
+  }catch(e){return null;}
+}
+async function deleteSnd(){
+  const db=await openDB();
+  return new Promise((res,rej)=>{
+    const tx=db.transaction(DB_STORE,'readwrite');
+    tx.objectStore(DB_STORE).delete('sound');
+    tx.oncomplete=res; tx.onerror=rej;
+  });
+}
 
-        // Key mapping: stores key string -> button index
-        let keyMap = {};
+// ---- Settings persistence ----
+function saveSettings(){
+  localStorage.setItem('simonx-s', JSON.stringify(S));
+  localStorage.setItem('simonx-b', String(best));
+}
+function loadSettings(){
+  try{
+    const s=JSON.parse(localStorage.getItem('simonx-s'));
+    if(s) S={...DEFS,...s,colors:[...(s.colors||DEFS.colors)],keybinds:[...(s.keybinds||DEFS.keybinds)]};
+    best=parseInt(localStorage.getItem('simonx-b')||'0')||0;
+  }catch(e){}
+}
 
-        // ---------- SCROLL LOCK ----------
-        function setScrollLock(lock) {
-            if (lock) {
-                document.body.classList.add('no-scroll');
-            } else {
-                document.body.classList.remove('no-scroll');
-            }
-        }
+// ---- DOM helpers ----
+const tileEls = [0,1,2,3].map(i=>document.getElementById('t'+i));
+const keyLabels= [0,1,2,3].map(i=>document.getElementById('k'+i));
 
-        // ---------- HIGH SCORE ----------
-        function loadHighScore() {
-            const saved = localStorage.getItem('simonHighScore');
-            if (saved !== null) {
-                highScore = parseInt(saved, 10) || 0;
-            } else {
-                highScore = 0;
-            }
-        }
-        function saveHighScore() {
-            localStorage.setItem('simonHighScore', highScore);
-        }
-        function updateRoundDisplay() {
-            roundDisplay.innerText = `ROUND ${round} / ${highScore}`;
-        }
+function setStatus(txt,cls=''){
+  const el=document.getElementById('status');
+  el.textContent=txt; el.className=cls;
+}
+function setRound(n){ document.getElementById('rnd').textContent=n||'—'; }
+function setBest(n){ document.getElementById('bst').textContent=n; document.getElementById('goBst').textContent=n; }
 
-        // ---------- POPUP FUNCTIONS ----------
-        function showLosePopup(roundReached) {
-            loseRoundSpan.textContent = roundReached;
-            losePopup.style.display = 'flex';
-            document.addEventListener('keydown', onPopupKeyDown);
-        }
+// ---- Tile visual ----
+function tileOn(i){
+  const t=tileEls[i];
+  t.style.boxShadow=`0 0 45px ${S.colors[i]}cc, 0 0 90px ${S.colors[i]}55`;
+  t.classList.add('active');
+}
+function tileOff(i){
+  tileEls[i].style.boxShadow='';
+  tileEls[i].classList.remove('active');
+}
+function tileFlashPlayer(i){
+  const t=tileEls[i];
+  t.style.boxShadow=`0 0 45px ${S.colors[i]}cc, 0 0 90px ${S.colors[i]}55`;
+  t.classList.add('player-flash');
+  setTimeout(()=>{ t.style.boxShadow=''; t.classList.remove('player-flash'); },200);
+}
+function tileWrong(i){
+  tileEls[i].classList.add('wrong-flash');
+  setTimeout(()=>tileEls[i].classList.remove('wrong-flash'),400);
+}
 
-        function hideLosePopup() {
-            losePopup.style.display = 'none';
-            document.removeEventListener('keydown', onPopupKeyDown);
-            // Re-enable scrolling when popup is dismissed
-            setScrollLock(false);
-        }
+// ---- Dots ----
+function updateDots(done){
+  const c=document.getElementById('dots');
+  c.innerHTML='';
+  seq.forEach((_,i)=>{
+    const d=document.createElement('div');
+    d.className='dot'+(i<done?' done':i===done?' cur':'');
+    c.appendChild(d);
+  });
+}
 
-        function onPopupKeyDown(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            hideLosePopup();
-        }
+// ---- Apply settings to DOM ----
+function applyColors(){
+  S.colors.forEach((c,i)=>{
+    document.documentElement.style.setProperty(`--c${i}`,c);
+    tileEls[i].style.background=c;
+    const dot=document.getElementById('cd'+i);
+    const kdot=document.getElementById('kd'+i);
+    if(dot) dot.style.background=c;
+    if(kdot) kdot.style.background=c;
+    // update color input value
+    const inp=document.getElementById('col'+i);
+    if(inp) inp.value=c;
+  });
+}
+function applyKeys(){
+  S.keybinds.forEach((k,i)=>{
+    keyLabels[i].textContent=fmtKey(k);
+    const el=document.getElementById('kb'+i);
+    if(el) el.textContent=fmtKey(k);
+  });
+}
+function applySize(){
+  const s=S.gameSize;
+  const base=180, gap=18, radius=16;
+  document.documentElement.style.setProperty('--tile-size',`${base*s}px`);
+  document.documentElement.style.setProperty('--gap',`${gap*s}px`);
+  document.documentElement.style.setProperty('--radius',`${radius*s}px`);
+  const sv=document.getElementById('size-val');
+  if(sv) sv.textContent=s.toFixed(2).replace(/\.?0+$/,'')+'×';
+  const sl=document.getElementById('sizeSlider');
+  if(sl) sl.value=s;
+}
+function applyPitchUI(){
+  const x=S.pitchX;
+  document.getElementById('pitchInp').value=x;
+  document.getElementById('pitchPrev').textContent=
+    `Tile 1: 0 st · Tile 2: −${x} st · Tile 3: −${x*2} st · Tile 4: −${x*3} st`;
+}
+function applyWaitUI(){
+  const live=S.waitMode==='live';
+  document.getElementById('modeStatic').classList.toggle('on',!live);
+  document.getElementById('modeLive').classList.toggle('on',live);
+  document.getElementById('waitLbl').textContent=live?'Added wait (% of avg)':'Gap between flashes (ms)';
+  document.getElementById('waitInp').value=S.waitValue;
+  document.getElementById('waitInfo').style.display=live?'block':'none';
+  document.getElementById('liveStats').style.display=live?'block':'none';
+}
+function applyAll(){
+  applyColors(); applyKeys(); applySize(); applyPitchUI(); applyWaitUI();
+  setBest(best);
+}
 
-        // Click on overlay (or its content) hides it
-        losePopup.addEventListener('click', function() {
-            hideLosePopup();
-        });
+// ---- Wait time calculation ----
+function calcWait(){
+  if(S.waitMode==='static') return Math.max(0,S.waitValue);
+  const base = lastAvg!==null ? lastAvg : DEFAULT_WAIT;
+  return base*(1+S.waitValue/100);
+}
 
-        // ---------- HELPER FUNCTIONS ----------
+// ---- Helpers ----
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+function rand4(){ return Math.floor(Math.random()*4); }
+function deepClone(o){ return JSON.parse(JSON.stringify(o)); }
+function fmtKey(k){
+  const m={' ':'SPC','ArrowUp':'↑','ArrowDown':'↓','ArrowLeft':'←','ArrowRight':'→',
+           'Enter':'ENT','Escape':'ESC','Backspace':'DEL','Tab':'TAB'};
+  return m[k]||(k.length===1?k.toUpperCase():k);
+}
 
-        // Resume audio context on first user interaction
-        async function initAudio() {
-            if (audioContext) return;
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            if (audioContext.state === 'suspended') {
-                try {
-                    await audioContext.resume();
-                } catch (e) {}
-            }
-        }
+// ---- GAME FLOW ----
+function startGame(){
+  cancelSimon();
+  gst='idle';
+  seq=[rand4()];
+  pIdx=0; stamps=[];
+  document.getElementById('gameover').classList.remove('show');
+  setRound(1);
+  document.getElementById('dots').innerHTML='';
+  setStatus('');
+  setTimeout(()=>runSimon(), 200);
+}
 
-        // Play sound for a given button (with detune)
-        function playSound(buttonIndex) {
-            if (!audioContext || !soundBuffer) return;
-            const source = audioContext.createBufferSource();
-            source.buffer = soundBuffer;
-            source.detune.value = detuneSteps[buttonIndex];
-            source.connect(audioContext.destination);
-            source.start();
-        }
+// Simon phase (phase 1)
+async function runSimon(){
+  const id=++simId;
+  gst='simon';
+  tilesEnabled(false);
+  setStatus('Watch the sequence…');
+  updateDots(-1);
+  const wait=calcWait();
 
-        // Load default sound (built-in oscillator fallback if no file)
-        function createFallbackSound() {
-            // Create a simple sine wave buffer
-            if (!audioContext) return;
-            const sampleRate = audioContext.sampleRate;
-            const duration = 0.2;
-            const buffer = audioContext.createBuffer(1, sampleRate * duration, sampleRate);
-            const data = buffer.getChannelData(0);
-            for (let i = 0; i < buffer.length; i++) {
-                data[i] = Math.sin(440 * 2 * Math.PI * i / sampleRate);
-            }
-            soundBuffer = buffer;
-        }
+  for(let i=0;i<seq.length;i++){
+    if(simId!==id) return;
+    const ti=seq[i];
+    tileOn(ti);
+    playTile(ti);
+    await sleep(FLASH_MS);
+    if(simId!==id) return;
+    tileOff(ti);
+    if(i<seq.length-1) await sleep(wait);
+  }
 
-        // Load uploaded audio file
-        soundUpload.addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            await initAudio();
-            const reader = new FileReader();
-            reader.onload = async (ev) => {
-                const arrayBuffer = ev.target.result;
-                try {
-                    const decoded = await audioContext.decodeAudioData(arrayBuffer);
-                    soundBuffer = decoded;
-                    alert('Sound loaded successfully!');
-                } catch (err) {
-                    alert('Could not decode audio. Using fallback beep.');
-                    createFallbackSound();
-                }
-            };
-            reader.readAsArrayBuffer(file);
-        });
+  if(simId===id) startPlayer();
+}
 
-        // Update button colors from pickers
-        function applyColors() {
-            for (let i = 0; i < 4; i++) {
-                btns[i].style.backgroundColor = colorPickers[i].value;
-            }
-        }
+// Player phase (phase 2)
+function startPlayer(){
+  gst='player';
+  pIdx=0; stamps=[];
+  tilesEnabled(true);
+  updateDots(0);
+  setStatus(`Your turn — ${seq.length} step${seq.length>1?'s':''}!`);
+  setRound(seq.length);
+}
 
-        // Update key mapping from inputs
-        function updateKeyMap() {
-            keyMap = {};
-            for (let i = 0; i < 4; i++) {
-                let key = keyInputs[i].value.trim().toLowerCase();
-                if (key.length === 0) continue;
-                keyMap[key] = i;
-            }
-        }
+function handlePress(i){
+  if(gst!=='player') return;
+  const now=Date.now();
+  stamps.push(now);
 
-        // Reset settings to defaults
-        function setDefaults() {
-            const defaultColors = ['#c04040', '#40c040', '#4040c0', '#c0c040'];
-            const defaultKeys = ['a', 's', 'd', 'f'];
-            for (let i = 0; i < 4; i++) {
-                colorPickers[i].value = defaultColors[i];
-                keyInputs[i].value = defaultKeys[i].toUpperCase();
-            }
-            adaptiveRadio.checked = true;
-            staticRadio.checked = false;
-            adaptivePercentInput.value = 25;
-            staticDelayInput.value = 500;
-            adaptiveMode = true;
-            adaptivePercent = 25;
-            staticDelay = 500;
-            applyColors();
-            updateKeyMap();
-            updateSpeedModeUI();
-            saveSettings();
-        }
+  // Play sound immediately — no debounce
+  playTile(i);
+  tileFlashPlayer(i);
 
-        // Update UI based on speed mode selection
-        function updateSpeedModeUI() {
-            if (adaptiveRadio.checked) {
-                adaptivePercentRow.style.display = 'flex';
-                staticDelayRow.style.display = 'none';
-                adaptiveMode = true;
-            } else {
-                adaptivePercentRow.style.display = 'none';
-                staticDelayRow.style.display = 'flex';
-                adaptiveMode = false;
-            }
-        }
+  if(i!==seq[pIdx]){
+    // Wrong tile
+    tileWrong(i);
+    triggerGameOver();
+    return;
+  }
 
-        // Load settings from localStorage if any
-        function loadSettings() {
-            const saved = localStorage.getItem('simonSettings');
-            if (saved) {
-                try {
-                    const data = JSON.parse(saved);
-                    if (data.colors) {
-                        for (let i = 0; i < 4; i++) {
-                            if (data.colors[i]) colorPickers[i].value = data.colors[i];
-                        }
-                    }
-                    if (data.keys) {
-                        for (let i = 0; i < 4; i++) {
-                            if (data.keys[i]) keyInputs[i].value = data.keys[i].toUpperCase();
-                        }
-                    }
-                    if (data.adaptiveMode !== undefined) {
-                        adaptiveMode = data.adaptiveMode;
-                        if (adaptiveMode) adaptiveRadio.checked = true;
-                        else staticRadio.checked = true;
-                    }
-                    if (data.adaptivePercent !== undefined) adaptivePercentInput.value = data.adaptivePercent;
-                    if (data.staticDelay !== undefined) staticDelayInput.value = data.staticDelay;
-                } catch (e) {}
-            }
-            adaptivePercent = parseFloat(adaptivePercentInput.value) || 25;
-            staticDelay = parseFloat(staticDelayInput.value) || 500;
-            applyColors();
-            updateKeyMap();
-            updateSpeedModeUI();
-        }
+  pIdx++;
+  updateDots(pIdx);
 
-        // Save settings to localStorage
-        function saveSettings() {
-            const colors = colorPickers.map(c => c.value);
-            const keys = keyInputs.map(k => k.value.toLowerCase());
-            const data = {
-                colors,
-                keys,
-                adaptiveMode: adaptiveRadio.checked,
-                adaptivePercent: parseFloat(adaptivePercentInput.value) || 25,
-                staticDelay: parseFloat(staticDelayInput.value) || 500
-            };
-            localStorage.setItem('simonSettings', JSON.stringify(data));
-        }
+  if(pIdx===seq.length){
+    roundDone();
+  }
+}
 
-        // Call when any setting changes
-        function onSettingChange() {
-            applyColors();
-            updateKeyMap();
-            adaptivePercent = parseFloat(adaptivePercentInput.value) || 25;
-            staticDelay = parseFloat(staticDelayInput.value) || 500;
-            saveSettings();
-        }
+async function roundDone(){
+  // Calculate avg gap between ALL presses this round
+  if(stamps.length>1){
+    let sum=0;
+    for(let j=1;j<stamps.length;j++) sum+=stamps[j]-stamps[j-1];
+    lastAvg=sum/(stamps.length-1);
+    if(S.waitMode==='live'){
+      document.getElementById('lastAvgDisp').textContent=Math.round(lastAvg);
+    }
+  }
 
-        // Attach setting listeners
-        for (let i = 0; i < 4; i++) {
-            colorPickers[i].addEventListener('input', onSettingChange);
-            keyInputs[i].addEventListener('focus', function() {
-                const handler = (e) => {
-                    e.preventDefault();
-                    let key = e.key;
-                    if (key === ' ') key = 'space';
-                    if (key.length === 1 || key === 'space' || key.startsWith('Arrow')) {
-                        let display = key.length === 1 ? key.toUpperCase() : key;
-                        this.value = display;
-                        onSettingChange();
-                    }
-                    document.removeEventListener('keydown', handler);
-                };
-                document.addEventListener('keydown', handler);
-            });
-        }
+  // Update best (current sequence length was successfully completed)
+  if(seq.length>best){ best=seq.length; setBest(best); }
 
-        // Speed mode toggle
-        adaptiveRadio.addEventListener('change', updateSpeedModeUI);
-        staticRadio.addEventListener('change', updateSpeedModeUI);
-        adaptivePercentInput.addEventListener('input', onSettingChange);
-        staticDelayInput.addEventListener('input', onSettingChange);
+  gst='between';
+  tilesEnabled(false);
+  setStatus('✓ Correct!','ok');
+  saveSettings();
 
-        // Toggle settings panel
-        settingsBtn.addEventListener('click', () => {
-            settingsPanel.classList.toggle('visible');
-        });
+  await sleep(550);
 
-        defaultSettingsBtn.addEventListener('click', () => {
-            setDefaults();
-            onSettingChange();
-        });
+  // Add next tile
+  seq.push(rand4());
+  setRound(seq.length);
+  await runSimon();
+}
 
-        // ---------- GAME LOGIC ----------
+function triggerGameOver(){
+  cancelSimon();
+  gst='gameover';
+  tilesEnabled(false);
+  stopSnd();
 
-        // Disable/enable player clicks
-        function setButtonsActive(active) {
-            for (let btn of btns) {
-                if (active) {
-                    btn.classList.remove('disabled');
-                } else {
-                    btn.classList.add('disabled');
-                }
-            }
-        }
+  // Show overlay
+  document.getElementById('goRnd').textContent=seq.length;
+  document.getElementById('goBst').textContent=best;
 
-        // Compute current delay based on mode and nextDelay (player avg)
-        function computeCurrentDelay() {
-            if (adaptiveRadio.checked) {
-                // Adaptive mode: use nextDelay + percentage
-                let base = nextDelay || staticDelay; // fallback to static if no player data yet
-                let percent = parseFloat(adaptivePercentInput.value) || 0;
-                return Math.min(1000, Math.max(80, base * (1 + percent / 100)));
-            } else {
-                // Static mode
-                return parseFloat(staticDelayInput.value) || 500;
-            }
-        }
+  // Show sequence for review
+  const names=['TL','TR','BL','BR'];
+  document.getElementById('go-seq').textContent='Sequence: '+seq.map(i=>names[i]).join(' → ');
 
-        // Computer plays the pattern
-        async function computerPlay() {
-            computerPlaying = true;
-            playerTurn = false;
-            setButtonsActive(false);
+  const go=document.getElementById('gameover');
+  go.classList.add('show');
+  const title=document.getElementById('go-title');
+  title.classList.remove('go-anim');
+  void title.offsetWidth;
+  title.classList.add('go-anim');
+  setStatus('');
+  document.getElementById('dots').innerHTML='';
+  setRound('');
+}
 
-            for (let i = 0; i < pattern.length; i++) {
-                const idx = pattern[i];
+function cancelSimon(){ simId++; }
 
-                // If this is the last button, add an extra 500ms pause before it
-                if (i === pattern.length - 1) {
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                }
+function tilesEnabled(on){
+  tileEls.forEach(t=>{
+    t.style.pointerEvents=on?'auto':'none';
+    t.classList.toggle('disabled',!on);
+  });
+}
 
-                // Highlight and play sound
-                btns[idx].classList.add('active');
-                playSound(idx);
-                await new Promise(resolve => setTimeout(resolve, currentDelay * 0.6));
-                btns[idx].classList.remove('active');
-                await new Promise(resolve => setTimeout(resolve, currentDelay * 0.4));
-            }
+// ---- KEYBIND CAPTURE ----
+let listeningTile = null;
 
-            computerPlaying = false;
-            playerTurn = true;
-            setButtonsActive(true);
-            playerStartTime = null;
-            playerTotalTime = 0;
-        }
+function startListen(tile){
+  if(listeningTile!==null){
+    document.getElementById('kb'+listeningTile).classList.remove('listening');
+    document.getElementById('kb'+listeningTile).textContent=fmtKey(S.keybinds[listeningTile]);
+  }
+  listeningTile=tile;
+  const el=document.getElementById('kb'+tile);
+  el.classList.add('listening');
+  el.textContent='…';
+}
 
-        // Start a new round
-        async function nextRound() {
-            if (!gameActive) return;
-            round++;
-            // Update high score if current round exceeds it (for display during game)
-            if (round > highScore) {
-                highScore = round;
-                saveHighScore();
-            }
-            updateRoundDisplay();
+document.addEventListener('keydown',e=>{
+  if(listeningTile!==null){
+    // Ignore pure modifiers
+    if(['Shift','Control','Alt','Meta'].includes(e.key)) return;
+    e.preventDefault();
+    S.keybinds[listeningTile]=e.key;
+    const el=document.getElementById('kb'+listeningTile);
+    el.classList.remove('listening');
+    el.textContent=fmtKey(e.key);
+    keyLabels[listeningTile].textContent=fmtKey(e.key);
+    listeningTile=null;
+    saveSettings();
+    return;
+  }
 
-            // Add a random new step to pattern
-            const newStep = Math.floor(Math.random() * 4);
-            pattern.push(newStep);
+  // Game key handling
+  if(['Shift','Control','Alt','Meta'].includes(e.key)) return;
+  const idx=S.keybinds.findIndex(k=>k.toLowerCase()===e.key.toLowerCase());
+  if(idx!==-1){
+    e.preventDefault();
+    handlePress(idx);
+  }
+});
 
-            // Set computer speed based on mode and nextDelay
-            currentDelay = computeCurrentDelay();
-            speedDisplay.innerText = `⚡ ${Math.round(currentDelay)} ms`;
+// Click outside keybind input to cancel listen
+document.addEventListener('click',e=>{
+  if(listeningTile!==null && !e.target.classList.contains('key-cap')){
+    document.getElementById('kb'+listeningTile).classList.remove('listening');
+    document.getElementById('kb'+listeningTile).textContent=fmtKey(S.keybinds[listeningTile]);
+    listeningTile=null;
+  }
+  // Resume AudioContext on any click (iOS requirement)
+  if(actx && actx.state==='suspended') actx.resume();
+},{passive:true});
 
-            await computerPlay();
-        }
+// ---- TOUCH support for tiles ----
+tileEls.forEach((t,i)=>{
+  // Click
+  t.addEventListener('click',()=>handlePress(i));
+  // Touch (for fast tapping without 300ms delay)
+  t.addEventListener('touchstart',e=>{
+    e.preventDefault();
+    handlePress(i);
+  },{passive:false});
+});
 
-        // Handle game over
-        function gameOver() {
-            gameActive = false;
-            playerTurn = false;
-            computerPlaying = false;
-            setButtonsActive(false);
-            showLosePopup(round);
-            startBtn.innerText = '▶ PLAY AGAIN';
-            // Note: scroll lock remains active until popup is dismissed
-        }
+// ---- SETTINGS PANEL EVENTS ----
+document.getElementById('settingsBtn').addEventListener('click',()=>{
+  document.getElementById('panel').classList.add('open');
+});
+document.getElementById('closePanel').addEventListener('click',()=>{
+  document.getElementById('panel').classList.remove('open');
+  if(listeningTile!==null){
+    document.getElementById('kb'+listeningTile).classList.remove('listening');
+    document.getElementById('kb'+listeningTile).textContent=fmtKey(S.keybinds[listeningTile]);
+    listeningTile=null;
+  }
+});
 
-        // Player clicked a button
-        async function onPlayerClick(index) {
-            if (!gameActive || computerPlaying || !playerTurn) return;
+// Keybind click listeners
+[0,1,2,3].forEach(i=>{
+  document.getElementById('kb'+i).addEventListener('click',e=>{
+    e.stopPropagation();
+    startListen(i);
+  });
+});
 
-            // Start timing on first correct press of the round
-            if (playerStartTime === null && index === pattern[0]) {
-                playerStartTime = performance.now();
-            }
+// Pitch X
+document.getElementById('pitchInp').addEventListener('input',e=>{
+  S.pitchX=parseFloat(e.target.value)||0;
+  applyPitchUI();
+  saveSettings();
+});
 
-            // Check correctness
-            if (index === pattern[playerInputIndex]) {
-                playSound(index);
-                btns[index].classList.add('active');
-                setTimeout(() => btns[index].classList.remove('active'), 150);
+// Wait mode (global functions for inline onclick)
+window.setMode=function(m){
+  S.waitMode=m;
+  applyWaitUI();
+  saveSettings();
+};
 
-                if (playerInputIndex === pattern.length - 1) {
-                    // End timing
-                    if (playerStartTime !== null) {
-                        const totalTime = performance.now() - playerStartTime;
-                        const avg = totalTime / pattern.length;
-                        nextDelay = avg;  // raw player average for next round
-                    }
+// Wait value
+document.getElementById('waitInp').addEventListener('input',e=>{
+  S.waitValue=parseFloat(e.target.value)||0;
+  saveSettings();
+});
 
-                    // Round complete - add 800ms pause before next round
-                    playerTurn = false;
-                    setButtonsActive(false);
-                    playerInputIndex = 0;
+// Colors
+[0,1,2,3].forEach(i=>{
+  document.getElementById('col'+i).addEventListener('input',e=>{
+    S.colors[i]=e.target.value;
+    applyColors();
+    saveSettings();
+  });
+});
 
-                    // Wait 800ms then go to next round
-                    await new Promise(resolve => setTimeout(resolve, 800));
-                    await nextRound();
-                } else {
-                    playerInputIndex++;
-                }
-            } else {
-                playSound(index);
-                btns[index].classList.add('active');
-                setTimeout(() => btns[index].classList.remove('active'), 150);
-                gameOver();
-            }
-        }
+// Game size slider
+document.getElementById('sizeSlider').addEventListener('input',e=>{
+  S.gameSize=parseFloat(e.target.value);
+  applySize();
+  saveSettings();
+});
 
-        // Keyboard handler
-        document.addEventListener('keydown', (e) => {
-            if (!gameActive || computerPlaying || !playerTurn) return;
-            const key = e.key.toLowerCase();
-            if (key in keyMap) {
-                e.preventDefault();
-                const btnIdx = keyMap[key];
-                onPlayerClick(btnIdx);
-            }
-        });
+// Start / Replay
+document.getElementById('startBtn').addEventListener('click',startGame);
+document.getElementById('replayBtn').addEventListener('click',startGame);
 
-        // Attach click handlers
-        for (let i = 0; i < btns.length; i++) {
-            btns[i].addEventListener('click', () => onPlayerClick(i));
-        }
+// ---- IMPORT SOUND ----
+document.getElementById('importBtn').addEventListener('click',()=>{
+  document.getElementById('fileInput').click();
+});
+document.getElementById('fileInput').addEventListener('change',async e=>{
+  const file=e.target.files[0];
+  if(!file) return;
+  setStatus('Loading sound…');
+  try{
+    const arr=await file.arrayBuffer();
+    const ctx=getCtx();
+    abuf=await ctx.decodeAudioData(arr.slice(0));
+    sndName=file.name;
+    document.getElementById('fileDisp').textContent=file.name;
+    await saveSnd(arr,file.name);
+    setStatus('Sound loaded!','ok');
+    setTimeout(()=>setStatus(''),2000);
+  }catch(err){
+    setStatus('Error loading sound','err');
+    console.error(err);
+    setTimeout(()=>setStatus(''),2500);
+  }
+  e.target.value='';
+});
 
-        // Start game
-        startBtn.addEventListener('click', async () => {
-            await initAudio();
-            if (!soundBuffer) {
-                createFallbackSound();
-            }
+// Reset sound
+document.getElementById('resetSnd').addEventListener('click',async()=>{
+  abuf=null; sndName=null;
+  document.getElementById('fileDisp').textContent='Default beep tones';
+  await deleteSnd();
+  setStatus('Using default beeps');
+  setTimeout(()=>setStatus(''),2000);
+});
 
-            if (gameActive) {
-                if (confirm('Restart game?')) {
-                    // reset
-                } else {
-                    return;
-                }
-            }
-            // Reset game state
-            pattern = [];
-            round = 0;
-            playerInputIndex = 0;
-            gameActive = true;
-            nextDelay = parseFloat(staticDelayInput.value) || 500;  // initial default
-            currentDelay = computeCurrentDelay();
-            startBtn.innerText = '▶ PLAYING';
-            // Update round display with current high score
-            updateRoundDisplay();
-            // Lock scrolling while game is active
-            setScrollLock(true);
-            await nextRound();
-        });
+// ---- INIT ----
+async function init(){
+  loadSettings();
+  applyAll();
 
-        // Load high score and settings on page load
-        loadHighScore();
-        loadSettings();
-        updateKeyMap();
-        updateRoundDisplay(); // show initial high score
+  // Auto-load saved custom sound
+  const saved=await loadSnd();
+  if(saved && saved.data){
+    try{
+      const ctx=getCtx();
+      abuf=await ctx.decodeAudioData(saved.data.slice(0));
+      sndName=saved.name;
+      document.getElementById('fileDisp').textContent=saved.name;
+    }catch(e){ abuf=null; sndName=null; }
+  }
+}
 
-        // Ensure audio context resumes on any click
-        document.addEventListener('click', async () => {
-            if (audioContext && audioContext.state === 'suspended') {
-                await audioContext.resume();
-            }
-        }, { once: false });
-
-    })();
+init();
 </script>
 </body>
 </html>
